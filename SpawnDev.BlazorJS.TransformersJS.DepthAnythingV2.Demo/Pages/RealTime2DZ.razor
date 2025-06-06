@@ -1,0 +1,262 @@
+﻿@page "/"
+@using SpawnDev.BlazorJS
+@using SpawnDev.BlazorJS.JSObjects
+@using System.Diagnostics
+@using SpawnDev.BlazorJS.TransformersJS
+@implements IDisposable
+
+<div class="container">
+    <h3>Real-time 2D to 2D+Z</h3>
+    <div>
+        In this demo, each webcam video frame is converted to 2D+Z using <a href="https://github.com/LostBeard/SpawnDev.BlazorJS.TransformersJS">SpawnDev.BlazorJS.TransformersJS</a> and <a href="https://developer.mozilla.org/en-US/docs/Web/API/TransformStream">TransformStream</a>.
+    </div>
+    <div>
+        <video width="640" @ref=videoRef autoplay muted playsinline controls></video>
+    </div>
+    <div id="controls">
+        <div title="Process frames at a lower size (lower = faster)">
+            <label>Depth Scale - Lower this value to improve FPS</label>
+            (<label>@(Math.Round(scale, 2))</label>)
+            <br />
+            <input @ref=scaleRef type="range" min="0.1" max="1" step="0.05" value="@scale" />
+        </div>
+        <div>FPS: @(Math.Round(fps, 2))</div>
+        <div>Source Size: @($"{SourceWidth}x{SourceHeight}")</div>
+        <div>Depth Size: @($"{DepthWidth}x{DepthHeight}")</div>
+        <div>@camErrorMessage</div>
+    </div>
+    <div>
+        <button disabled="@startButtonDisabled" @onclick=@(() => Start())>Start</button>
+        <button disabled="@stopButtonDisabled" @onclick=@(() => Stop())>Stop</button>
+    </div>
+</div>
+
+@code {
+    [Inject]
+    BlazorJSRuntime JS { get; set; } = default!;
+
+    [Inject]
+    DepthAnythingService DepthAnythingService { get; set; } = default!;
+
+    MediaStream? stream = null;
+    TransformStreamCallbacks? transformerCallbacks = null;
+    TransformStream? transformStream = null;
+    Task? transformerTask = null;
+    ElementReference videoRef;
+    ElementReference scaleRef;
+    HTMLInputElement? scaleEl;
+    HTMLVideoElement? video;
+    Window? window = null;
+    bool UseWebGPU = true;
+    DepthEstimationPipeline? pipeline = null;
+    double scale = 0.5d;
+    double fps = 0;
+    Stopwatch sw = Stopwatch.StartNew();
+    bool stopButtonDisabled => transformStream == null || busy;
+    bool startButtonDisabled => transformStream != null || busy;
+    string? camErrorMessage = null;
+    double frameCount = 0;
+    bool busy = false;
+
+    void Scale_OnChange()
+    {
+        if (scaleEl == null) return;
+        if (double.TryParse(scaleEl.Value, out var s))
+        {
+            scale = s;
+            StateHasChanged();
+        }
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            window = JS.Get<Window>("window");
+            video = new HTMLVideoElement(videoRef);
+            scaleEl = new HTMLInputElement(scaleRef);
+            scaleEl.OnChange += Scale_OnChange;
+            transformerCallbacks = new TransformStreamCallbacks(transform: Transformer_Transform);
+        }
+    }
+    void Stop()
+    {
+        if (video != null)
+        {
+            try
+            {
+                if (!video.Paused) video.Pause();
+                video.SrcObject = null;
+            }
+            catch { }
+        }
+        if (stream != null)
+        {
+            stream.StopAllTracks();
+            stream.Dispose();
+            stream = null;
+        }
+        transformStream?.Dispose();
+        transformStream = null;
+    }
+    async Task Start()
+    {
+        if (video == null || transformerCallbacks == null)
+        {
+            return;
+        }
+        Stop();
+        try
+        {
+            busy = true;
+            camErrorMessage = "";
+            StateHasChanged();
+            if (pipeline == null)
+            {
+                pipeline = await DepthAnythingService.GetDepthEstimationPipeline();
+            }
+            using var navigator = JS.Get<Navigator>("navigator");
+            stream = await navigator.MediaDevices.GetUserMedia(new { video = true });
+            if (stream != null)
+            {
+                using var inputTrack = stream.GetFirstVideoTrack();
+                using var processor = new MediaStreamTrackProcessor(new MediaStreamTrackProcessorOptions { Track = inputTrack });
+                using var generator = new MediaStreamTrackGenerator(new MediaStreamTrackGeneratorOptions { Kind = "video" });
+
+                transformStream = new TransformStream(transformerCallbacks);
+                // Pipe the processor through the transformer to the generator
+                transformerTask = processor.Readable.PipeThrough(transformStream).PipeTo(generator.Writable);
+
+                // Display the output stream in the video element
+                video.SrcObject = new MediaStream([generator]);
+                await video.Play();
+            }
+        }
+        catch (Exception ex)
+        {
+            camErrorMessage = $"Camera access failed: {ex.Message}";
+            JS.Log($"Start failed: {ex.Message}");
+            Stop();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+    async Task Transformer_Transform(VideoFrame rgbFrame, TransformStreamDefaultController controller)
+    {
+        try
+        {
+            var rgbWidth = rgbFrame.DisplayWidth;
+            var rgbHeight = rgbFrame.DisplayHeight;
+
+            // Create an OffscreenCanvas to draw the VideoFrame
+            var depthWidth = (int)(rgbWidth * scale);
+            var depthHeight = (int)(rgbHeight * scale);
+            using var rgbCanvas = new OffscreenCanvas(depthWidth, depthHeight);
+            using var rgbCtx = rgbCanvas.Get2DContext();
+            rgbCtx.DrawImage(rgbFrame, 0, 0, depthWidth, depthHeight);
+
+            // Convert the OffscreenCanvas to a RawImage for processing
+            using var rgbImage = RawImage.FromCanvas(rgbCanvas);
+
+            // Run the depth estimation pipeline on the RGB image
+            using var depthResult = await pipeline!.Call(rgbImage);
+
+            // Merge the 2D image and the depth result into a single canvas
+            using var rgbZCanvas = Merge2DWithDepthToCanvas2DZ(rgbFrame, depthResult);
+
+            // Create a new VideoFrame with the processed bitmap
+            using var rgbZFrame = new VideoFrame(rgbZCanvas, new VideoFrameOptions
+            {
+                Timestamp = rgbFrame.Timestamp,
+                Duration = rgbFrame.Duration,
+            });
+
+            // Enqueue the new frame into the output stream
+            controller.Enqueue(rgbZFrame);
+
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error processing video frame: {ex.Message}");
+        }
+        finally
+        {
+            rgbFrame.Close(); // Dispose the VideoFrame to free resources
+            // update fps
+            frameCount += 1;
+            var elapsedSeconds = sw.Elapsed.TotalSeconds;
+            if (elapsedSeconds >= 1d)
+            {
+                sw.Restart();
+                fps = frameCount / elapsedSeconds;
+                frameCount = 0;
+                StateHasChanged();
+            }
+        }
+    }
+    int SourceWidth = 0;
+    int SourceHeight = 0;
+    int DepthWidth = 0;
+    int DepthHeight = 0;
+    OffscreenCanvas Merge2DWithDepthToCanvas2DZ(VideoFrame rgbFrame, DepthEstimationResult depthEstimationResult)
+    {
+        using var depthEstimation = depthEstimationResult.Depth;
+        using var grayscale1BPPData = depthEstimation.Data;
+        var depthWidth = depthEstimation.Width;
+        var depthHeight = depthEstimation.Height;
+        var width = rgbFrame.DisplayWidth;
+        var height = rgbFrame.DisplayHeight;
+        var outWidth = width * 2;
+        var outHeight = height;
+        SourceWidth = width;
+        SourceHeight = height;
+        DepthWidth = depthWidth;
+        DepthHeight = depthHeight;
+        var grayscaleDataBytes = grayscale1BPPData.ReadBytes();
+        // Convert the 1BPP grayscale data to RGBA format
+        var depthmapRGBABytes = Grayscale1BPPToRGBA(grayscaleDataBytes, depthWidth, depthHeight);
+        // Create an ImageData object from the depth bytes
+        using var depthImageData = ImageData.FromBytes(depthmapRGBABytes, depthWidth, depthHeight);
+        // Create an OffscreenCanvas for the depth map ImageData
+        using var depthCanvas = new OffscreenCanvas(depthWidth, depthHeight);
+        using var depthCtx = depthCanvas.Get2DContext();
+        // Draw the depth map ImageData onto the OffscreenCanvas
+        depthCtx.PutImageData(depthImageData, 0, 0);
+        // Create an OffscreenCanvas for the final output
+        var canvas = new OffscreenCanvas(outWidth, outHeight);
+        using var ctx = canvas.Get2DContext();
+        // draw rgb image
+        ctx.DrawImage(rgbFrame, 0, 0, width, height);
+        // draw depth map
+        ctx.DrawImage(depthCanvas, width, 0, width, height);
+        return canvas;
+    }
+    byte[] Grayscale1BPPToRGBA(byte[] grayscaleData, int width, int height)
+    {
+        var ret = new byte[width * height * 4];
+        for (var i = 0; i < grayscaleData.Length; i++)
+        {
+            var grayValue = grayscaleData[i];
+            ret[i * 4] = grayValue;     // Red
+            ret[i * 4 + 1] = grayValue; // Green
+            ret[i * 4 + 2] = grayValue; // Blue
+            ret[i * 4 + 3] = 255;       // Alpha
+        }
+        return ret;
+    }
+    public void Dispose()
+    {
+        // Clean up resources if necessary
+        Stop();
+        if (scaleEl != null)
+        {
+            scaleEl.OnChange -= Scale_OnChange;
+            scaleEl.Dispose();
+            scaleEl = null;
+        }
+        video?.Dispose();
+        window?.Dispose();
+        transformerCallbacks?.Dispose();
+    }
+}
