@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36127.28
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpawnDev.BlazorJS.TransformersJS.DepthAnythingV2", "SpawnDev.BlazorJS.TransformersJS.DepthAnythingV2\SpawnDev.BlazorJS.TransformersJS.DepthAnythingV2.csproj", "{1567A836-8FB4-7B1D-5A99-00FF2A2E54B5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpawnDev.BlazorJS.TransformersJS.DepthAnythingV2.Demo", "SpawnDev.BlazorJS.TransformersJS.DepthAnythingV2.Demo\SpawnDev.BlazorJS.TransformersJS.DepthAnythingV2.Demo.csproj", "{3C52E1FC-7F2D-3D0A-541B-836CABEE7615}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1567A836-8FB4-7B1D-5A99-00FF2A2E54B5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1567A836-8FB4-7B1D-5A99-00FF2A2E54B5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1567A836-8FB4-7B1D-5A99-00FF2A2E54B5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1567A836-8FB4-7B1D-5A99-00FF2A2E54B5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3C52E1FC-7F2D-3D0A-541B-836CABEE7615}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3C52E1FC-7F2D-3D0A-541B-836CABEE7615}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3C52E1FC-7F2D-3D0A-541B-836CABEE7615}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3C52E1FC-7F2D-3D0A-541B-836CABEE7615}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3B2A0F16-F7B3-43F4-BB61-7CC701697ECA}
+	EndGlobalSection
+EndGlobal
