@@ -1,0 +1,3 @@
+// The files in this folder require specific versions of the Transformers.js library to work correctly.
+// The version specified here should match the version used in the Transformers.js library.
+3.5.2
