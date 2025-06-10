@@ -4,14 +4,14 @@
 		<TargetFrameworks>net8.0;</TargetFrameworks>
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
-		<Version>1.1.0</Version>
+		<Version>1.2.0</Version>
 		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 		<EmbedAllSources>true</EmbedAllSources>
 		<DebugType>Embedded</DebugType>
 		<Title>SpawnDev.BlazorJS.TransformersJS.DepthAnythingV2</Title>
 		<Authors>LostBeard</Authors>
-		<Description>TransformersJS with DepthAnythingV2 for Blazor WebAssembly. Includes fp16 and fp32 models.</Description>
+		<Description>Transformers.js with Depth Anything V2 Small for Blazor WebAssembly. Includes fp16 and fp32 models.</Description>
 		<PackageProjectUrl>https://github.com/LostBeard/SpawnDev.BlazorJS.TransformersJS.DepthAnythingV2</PackageProjectUrl>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
