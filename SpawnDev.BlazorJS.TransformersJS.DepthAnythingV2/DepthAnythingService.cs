@@ -95,8 +95,34 @@ namespace SpawnDev.BlazorJS.TransformersJS.DepthAnythingV2
         public bool UseFp16IfSupported { get; set; } = true;
         bool UseCustomCache = false;
         NavigationManager NavigationManager;
-        Uri AppBaseUri;
-        Uri RCLContentBaseUri;
+        private Uri _AppBaseUri;
+        /// <summary>
+        /// Gets or sets the base URI for the application.<br/>
+        /// If running in a browser extension, this should be set to the extension's base URI.<br/>
+        /// </summary>
+        /// <remarks>When setting this property, if the provided URI does not end with a trailing slash, 
+        /// a slash will be appended automatically. This ensures consistent behavior when constructing  relative URIs
+        /// based on the application base URI.</remarks>
+        public Uri AppBaseUri
+        {
+            get => _AppBaseUri;
+            set
+            {
+                _AppBaseUri = value;
+                // ensure the base URI ends with a slash
+                if (!_AppBaseUri.ToString().EndsWith("/"))
+                {
+                    _AppBaseUri = new Uri(_AppBaseUri, "/");
+                }
+                RCLContentBaseUri = new Uri(AppBaseUri, "_content/SpawnDev.BlazorJS.TransformersJS.DepthAnythingV2/");
+                RemoteModelsUrl = GetRCLContentUrl("models/");
+                RemoteWasmsUrl = GetRCLContentUrl("backends/onnx/wasm/");
+            }
+        }
+        /// <summary>
+        /// Gets the base URI for accessing RCL (Razor Class Library) content.
+        /// </summary>
+        public Uri RCLContentBaseUri { get; private set; }
         /// <summary>
         /// Initializes a new instance of the <see cref="DepthAnythingService"/> class.
         /// </summary>
@@ -111,17 +137,27 @@ namespace SpawnDev.BlazorJS.TransformersJS.DepthAnythingV2
             WebGPUSupported = !JS.IsUndefined("navigator.gpu?.requestAdapter");
             // need to see if Urls are correct in browser extensions
             AppBaseUri = new Uri(navigationManager.BaseUri);
-            RCLContentBaseUri = new Uri(AppBaseUri, "_content/SpawnDev.BlazorJS.TransformersJS.DepthAnythingV2/");
-            RemoteModelsUrl = GetRCLUrl("models/");
-            RemoteWasmsUrl = GetRCLUrl("backends/onnx/wasm/");
         }
-        string GetAppUrl(string relativeUrl)
+        /// <summary>
+        /// Constructs the absolute URL by combining the application's base URI with the specified relative URL.
+        /// </summary>
+        /// <param name="relativeUrl">The relative URL to append to the application's base URI. This value cannot be null or empty.</param>
+        /// <returns>The absolute URL as a string, formed by combining the base URI and the relative URL.</returns>
+        public string GetAppUrl(string relativeUrl)
         {
             // this is used to get the URL of the models and wasm files
             // it will be used by Transformers.env.remoteHost and Transformers.env.backends.onnx.wasm.wasmPaths
             return new Uri(AppBaseUri, relativeUrl).ToString();
         }
-        string GetRCLUrl(string relativeUrl)
+        /// <summary>
+        /// Constructs the absolute URL for a resource within the Razor Class Library (RCL) content directory.
+        /// </summary>
+        /// <remarks>This method is typically used to resolve the URLs of resources such as models or
+        /// WebAssembly files that are hosted within the RCL content directory. The resulting URL can be used to
+        /// configure external dependencies or runtime environments.</remarks>
+        /// <param name="relativeUrl">The relative URL of the resource within the RCL content directory. This value must not be null or empty.</param>
+        /// <returns>A string representing the absolute URL of the specified resource.</returns>
+        public string GetRCLContentUrl(string relativeUrl)
         {
             // this is used to get the URL of the models and wasm files
             // it will be used by Transformers.env.remoteHost and Transformers.env.backends.onnx.wasm.wasmPaths

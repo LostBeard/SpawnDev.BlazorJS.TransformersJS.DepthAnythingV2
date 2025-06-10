@@ -31,5 +31,20 @@ namespace SpawnDev.BlazorJS.TransformersJS.DepthAnythingV2
                 return depthAnythingService;
             });
         }
+        /// <summary>
+        /// Adds the DepthAnythingService to the service collection with a configuration action.
+        /// </summary>
+        /// <param name="services"></param>
+        /// <param name="config"></param>
+        /// <returns></returns>
+        public static IServiceCollection AddDepthAnything(this IServiceCollection services, Action<DepthAnythingService, IServiceProvider> config)
+        {
+            return services.AddSingleton<DepthAnythingService>(p =>
+            {
+                var depthAnythingService = ActivatorUtilities.CreateInstance<DepthAnythingService>(p);
+                config(depthAnythingService, p);
+                return depthAnythingService;
+            });
+        }
     }
 }
