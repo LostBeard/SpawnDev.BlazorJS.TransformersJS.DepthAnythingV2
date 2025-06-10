@@ -1,6 +1,6 @@
 ﻿# SpawnDev.BlazorJS.TransformersJS.DepthAnythingV2
 [![NuGet version](https://badge.fury.io/nu/SpawnDev.BlazorJS.TransformersJS.DepthAnythingV2.svg?label=SpawnDev.BlazorJS.TransformersJS.DepthAnythingV2)](https://www.nuget.org/packages/SpawnDev.BlazorJS.TransformersJS.DepthAnythingV2)
-TransformersJS with DepthAnythingV2 for Blazor WebAssembly. Includes fp16 and fp32 models.
+[Transformers.js](https://github.com/huggingface/transformers.js/) with [Depth Anything V2 Small](https://huggingface.co/onnx-community/depth-anything-v2-small) for Blazor WebAssembly. Includes fp16 and fp32 models.
 
 ### Demo
 [Live Demo](https://lostbeard.github.io/SpawnDev.BlazorJS.TransformersJS.DepthAnythingV2/)
