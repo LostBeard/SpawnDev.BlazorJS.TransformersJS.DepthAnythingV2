@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Components;
 using SpawnDev.BlazorJS.JSObjects;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace SpawnDev.BlazorJS.TransformersJS.DepthAnythingV2
 {
@@ -68,6 +69,7 @@ namespace SpawnDev.BlazorJS.TransformersJS.DepthAnythingV2
         /// </summary>
         public Dictionary<string, HTMLImageElement> Cached2DZImages { get; } = new Dictionary<string, HTMLImageElement>();
         BlazorJSRuntime JS;
+
         Transformers? Transformers = null;
         /// <summary>
         /// The location of the models remote files<br/>
@@ -329,7 +331,7 @@ namespace SpawnDev.BlazorJS.TransformersJS.DepthAnythingV2
         {
             if (image == null || !image.Complete || image.NaturalWidth == 0 || image.NaturalHeight == 0 || string.IsNullOrEmpty(image.Src))
             {
-                throw new Exception("Invalid image");
+                throw new Exception("Invalid imageUrl");
             }
             var source = image.Src;
             if (Cached2DZImages.TryGetValue(source, out var imageWithDepth))
@@ -395,7 +397,7 @@ namespace SpawnDev.BlazorJS.TransformersJS.DepthAnythingV2
             }
             catch (Exception ex)
             {
-                JS.Log("Depthmap image creation failed", ex);
+                JS.Log("Depthmap imageUrl creation failed", ex);
             }
             finally
             {
@@ -416,9 +418,74 @@ namespace SpawnDev.BlazorJS.TransformersJS.DepthAnythingV2
             ctx.DrawImage(rgbImage);
             // draw depth map
             ctx.PutImageBytes(depthmapRGBABytes, width, height, width, 0);
-            using var blob = await canvas.ToBlobAsync("image/png");
+            using var blob = await canvas.ToBlobAsync("imageUrl/png");
             var ret = URL.CreateObjectURL(blob);
             return ret;
+        }
+        /// <summary>
+        /// Generates depth for the specified source
+        /// </summary>
+        /// <param name="image"></param>
+        /// <returns></returns>
+        public async Task<DepthEstimationResult?> GenerateDepth(Blob image)
+        {
+            var DepthEstimationPipeline = await GetDepthEstimationPipeline();
+            using var rawImage = await RawImage.FromBlob(image);
+            return await DepthEstimationPipeline!.Call(rawImage);
+        }
+        /// <summary>
+        /// Generates depth for the specified source
+        /// </summary>
+        /// <param name="image"></param>
+        /// <returns></returns>
+        public async Task<DepthEstimationResult?> GenerateDepth(OffscreenCanvas image)
+        {
+            var DepthEstimationPipeline = await GetDepthEstimationPipeline();
+            using var rawImage = RawImage.FromCanvas(image);
+            return await DepthEstimationPipeline!.Call(rawImage);
+        }
+        /// <summary>
+        /// Generates depth for the specified source
+        /// </summary>
+        /// <param name="image"></param>
+        /// <returns></returns>
+        public async Task<DepthEstimationResult?> GenerateDepth(HTMLCanvasElement image)
+        {
+            var DepthEstimationPipeline = await GetDepthEstimationPipeline();
+            using var rawImage = RawImage.FromCanvas(image);
+            return await DepthEstimationPipeline!.Call(rawImage);
+        }
+        /// <summary>
+        /// Generates depth for the specified source
+        /// </summary>
+        /// <param name="image"></param>
+        /// <returns></returns>
+        public async Task<DepthEstimationResult?> GenerateDepth(HTMLImageElement image)
+        {
+            var DepthEstimationPipeline = await GetDepthEstimationPipeline();
+            using var rawImage = RawImage.FromImage(image);
+            return await DepthEstimationPipeline!.Call(rawImage);
+        }
+        /// <summary>
+        /// Generates depth for the specified source
+        /// </summary>
+        /// <param name="imageUrl"></param>
+        /// <returns></returns>
+        public async Task<DepthEstimationResult?> GenerateDepth(string imageUrl)
+        {
+            var DepthEstimationPipeline = await GetDepthEstimationPipeline();
+            using var rawImage = await RawImage.FromURL(imageUrl);
+            return await DepthEstimationPipeline!.Call(rawImage);
+        }
+        /// <summary>
+        /// Generates depth for the specified source
+        /// </summary>
+        /// <param name="image"></param>
+        /// <returns></returns>
+        public async Task<DepthEstimationResult?> GenerateDepth(RawImage image)
+        {
+            var DepthEstimationPipeline = await GetDepthEstimationPipeline();
+            return await DepthEstimationPipeline!.Call(image);
         }
         async Task<string> CreateDepthImageObjectUrl(Uint8Array grayscale1BPPUint8Array, int width, int height)
         {
@@ -427,10 +494,18 @@ namespace SpawnDev.BlazorJS.TransformersJS.DepthAnythingV2
             using var canvas = new HTMLCanvasElement(width, height);
             using var ctx = canvas.Get2DContext();
             ctx.PutImageBytes(depthmapRGBABytes, width, height);
-            using var blob = await canvas.ToBlobAsync("image/png");
+            using var blob = await canvas.ToBlobAsync("imageUrl/png");
             var ret = URL.CreateObjectURL(blob);
             return ret;
         }
+        /// <summary>
+        /// Converts 1 byte per pixel greyscale image into a 4 bytes per pixel rgba image<br/>
+        /// A faster method of doing this should be implemented soon
+        /// </summary>
+        /// <param name="grayscaleData"></param>
+        /// <param name="width"></param>
+        /// <param name="height"></param>
+        /// <returns></returns>
         public byte[] Grayscale1BPPToRGBA(byte[] grayscaleData, int width, int height)
         {
             var ret = new byte[width * height * 4];
